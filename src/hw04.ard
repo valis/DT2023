@@ -1,3 +1,5 @@
+\import Algebra.Monoid
+\import Arith.Nat
 \import Data.Bool
 \import Paths
 \import lect04
@@ -115,10 +117,3 @@
 \func J' {A : \Type} {a : A} (B : \Pi (a' : A) -> a = a' -> \Type)
          (b : B a idp)
          {a' : A} (p : a = a') : B a' p => {?}
-
--- Optional task
--- 16. Докажите ассоциативность конкатенации векторов.
-\func v++-assoc {A : \Type} {n m k : Nat}
-                (xs : Vec A n) (ys : Vec A m) (zs : Vec A k)
-  : transport (Vec A) (+-assoc n m k) ((xs v++ ys) v++ zs) = xs v++ (ys v++ zs)
-  => {?}
