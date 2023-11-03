@@ -1,0 +1,55 @@
+\import Data.Bool
+\import Logic
+
+-- 1. Определите функцию swap и докажите, что swap (swap p) = p.
+
+\func swap {A B : \Type} (p : \Sigma A B) : \Sigma B A
+  => {?}
+
+\func swap-involutive {A B : \Type} (p : \Sigma A B) : swap (swap p) = p => {?}
+
+-- 2. Докажите, что (\lam x => not (not x)) = (\lam x => x).
+
+\func notNotId : (\lam x => not (not x)) = (\lam x => x) => {?}
+
+-- 3. Докажите, что fac не равен suc.
+
+\open Nat(*)
+
+\func fac (n : Nat) : Nat
+  | 0 => 1
+  | suc n => suc n * fac n
+
+\func fac/=suc (p : fac = suc) : Empty => {?}
+
+-- 4. Докажите, что left = right, не используя transport, coe и паттерн матчинг с idp.
+
+\func left=right : left = right => {?}
+
+-- 5. Докажите, что если a = a' и b = b', то (a,b) = (a',b'), не используя transport, coe и паттерн матчинг с idp.
+
+\func pairEq {A B : \Type} {a a' : A} {b b' : B} (p : a = a') (q : b = b') : (a,b) = (a',b') => {?}
+
+-- 6. Докажите, что если p = p', то p.1 = p'.1, не используя transport, coe и паттерн матчинг с idp.
+
+\func projEq {A : \Type} (B : A -> \Type) {p p' : \Sigma (x : A) (B x)} (t : p = p') : p.1 = p'.1 => {?}
+
+-- 7. Докажите pmap2, не используя transport, coe и паттерн матчинг с idp.
+
+\func pmap2' {A B C : \Type} (f : A -> B -> C) {a a' : A} (p : a = a') {b b' : B} (q : b = b') : f a b = f a' b' => {?}
+
+-- 8. Мы видели как определить transport через coe. Определите частный случай coe через transport.
+
+\func coe0 (A : I -> \Type) (a : A left) : A right => {?}
+
+-- 9. Докажите, что transport' от константной функции возвращает свой последний аргумент.
+
+\func transport' {A : \Type} (B : A -> \Type) {a a' : A} (p : a = a') (b : B a) : B a' \elim p
+  | idp => b
+
+\func transport'_const {A B : \Type} {a a' : A} (p : a = a') (b : B) : transport' (\lam _ => B) p b = b
+  => {?}
+
+-- 10. Определите функцию B right -> B left.
+
+\func Itr' {B : I -> \Type} (b : B right) : B left => {?}
