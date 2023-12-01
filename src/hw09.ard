@@ -1,7 +1,6 @@
 \import Data.Maybe
-\import Order.LinearOrder
+\import lect06 (Decide)
 \import lect09
-\open LinearOrder
 
 -- 1. Определите отношение многошаговой редукции на Term.
 
@@ -10,7 +9,7 @@
 -- 2. Стратегия редукции -- это функция, которая каждому терму сопоставляет либо некоторый терм, к которому он редуцируется за 1 шаг, либо доказательство, что таких термов нет.
 --    Определите любую стратегию редукции.
 
-\func strategy {V : \Set} (t : Term V) : Dec (\Sigma (s : Term V) (Red1 t s)) => {?}
+\func strategy {V : \Set} (t : Term V) : Decide (\Sigma (s : Term V) (Red1 t s)) => {?}
 
 -- 3. Докажите, что подтермы достижимого терма достижимы.
 
