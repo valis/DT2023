@@ -1,0 +1,184 @@
+\import Data.List
+\import Data.Maybe
+\import Data.Or
+\import Equiv (QEquiv)
+\import Equiv.Univalence
+\import Function.Meta ($)
+\import Logic
+\import Logic.Meta
+\import Meta
+\import Paths.Meta
+\import Set
+\import lect11 (DecEq)
+\import lect12 \hiding (sym)
+
+-- 1. Тип данных Set.
+
+-- Спецификация типа данных Set.
+-- setExt эквиваленнтен утверждению, что функция \lam x y => isElem y x : S -> (A -> \Prop) является инъективной.
+-- То есть isElem вместе с setExt говорят, что S является подмножеством A -> \Prop, то есть состоит из подмножеств A.
+-- empty вместе с emptyProp говорит, что пустое подмножество принадлежит S.
+-- Вместе с add, addHead, addTail и addProp это влечет, что все конечные подмножества принадлежат S.
+\class SetSpec {A : \Set} (S : \Set)
+  | empty : S
+  | add : A -> S -> S
+  | isElem : A -> S -> \Prop
+  | setExt {s s' : S} : (\Pi (a : A) -> isElem a s <-> isElem a s') -> s = s'
+  | add-head {a : A} {s : S} : isElem a (add a s)
+  | add-tail {a x : A} {s : S} : isElem a s -> isElem a (add x s)
+  | add-univ {a x : A} {s : S} : isElem a (add x s) -> (a = x) || isElem a s
+  | empty-univ {a : A} : Not (isElem a empty)
+
+\class SetSpec' {A : \Set} (S : \Set)
+  | isElem' : S -> A -> \Prop
+  | setExt' : isInj isElem'
+
+\truncated \data In {A : \Type} (x : A) (xs : List A) : \Prop \elim xs
+  | :: x' xs => { here (x = x') | there (In x xs) }
+
+-- Определим отношение эквивалентности на списках.
+-- Два списка эквивалентны, если они содержат одни и те же элементы.
+\func EqList {A : \Set} (xs ys : List A)
+  => \Pi (x : A) -> In x xs <-> In x ys
+
+-- Простая реализация SetSpec
+\func ListSet (A : \Set) => Quotient (List A) EqList
+
+-- Мы хотим доказать, что наша спецификация полна, то есть, что ListSet -- это единственная реализация, удовлетворяющая ей.
+-- Для этого достаточно построить биекцию между произвольной реализацией S и ListSet
+
+-- Любому списку можно сопоставить множество.
+\func listToSet {S : SetSpec} (xs : List S.A) : S \elim xs
+  | nil => empty
+  | a :: xs => add a (listToSet xs)
+
+-- In x xs <-> isElem x (listToSet xs)
+\lemma listIn_setExt {S : SetSpec} {l : List S.A} {a : S.A} (p : In a l)
+  : isElem a (listToSet l) \elim l, p
+  | x' :: l, here idp => add-head
+  | x' :: l, there p => add-tail (listIn_setExt p)
+
+\lemma setExt_listIn {S : SetSpec} {l : List S.A} {a : S.A} (p : isElem a (listToSet l)) : In a l \elim l
+  | nil => absurd (empty-univ p)
+  | x :: l => \case add-univ p \with {
+    | byLeft r => here r
+    | byRight r => there (setExt_listIn r)
+  }
+
+-- listToSet уважает отношение эквивалентности, а значит у нас есть функция из ListSet в S.
+\func listSetToSet {S : SetSpec} (xs : ListSet S.A) : S \elim xs
+  | in~ l => listToSet l
+  | equals~ {l} {l'} r => setExt \lam a =>
+      (\lam c => listIn_setExt $ (r a).1 $ setExt_listIn c,
+       \lam c => listIn_setExt $ (r a).2 $ setExt_listIn c)
+
+\lemma setUnext {S : SetSpec} {s s' : S} (p : s = s') : \Pi (a : S.A) -> isElem a s <-> isElem a s' \elim p
+  | idp => \lam a => (\lam c => c, \lam c => c)
+
+-- Чтобы доказать, что listSetToSet является биекцией, достаточно показать, что она инъекция и сюръекция.
+-- Инъективность легко доказывается:
+\lemma listSetToSet-inj {S : SetSpec} : isInj (listSetToSet {S})
+  => \case \elim __, \elim __ \with {
+    | in~ l, in~ l' => \lam p => path (equals~ \lam a => later
+        (\lam c => setExt_listIn $ (setUnext p a).1 $ listIn_setExt c,
+         \lam c => setExt_listIn $ (setUnext p a).2 $ listIn_setExt c))
+  }
+
+-- Чтобы доказать сюръективность, нужно добавить условие, что в S лежат только конечные подмножества A.
+\class FinSetSpec \extends SetSpec
+  | set-fin (s : S) : ∃ (l : List A) (\Pi (a : A) -> isElem a s <-> In a l)
+
+-- Теперь можно доказать сюръективность.
+\func listSetToSet-sur {S : FinSetSpec} : isSur (listSetToSet {S})
+  => \lam s => \case set-fin s \with {
+    | inP (l,d) => inP (in~ l, setExt \lam a => (\lam c => (d a).2 $ setExt_listIn c, \lam c => listIn_setExt $ (d a).1 c))
+  }
+
+-- Наша спецификация полна, то есть ListSet -- это единственная ее реализация.
+\func listSet=Set {S : FinSetSpec} : ListSet S.A = S
+  => Equiv-to-= $ {?}
+
+-- Наша спецификация корректна, то есть ListSet ей удовлетворяет.
+\instance ListSetSet {A : \Set} : FinSetSpec {A} (ListSet A)
+  | empty => in~ nil
+  | add (a : A) (l : ListSet A) : ListSet A \elim l {
+    | in~ l => in~ (a :: l)
+    | equals~ {l} {l'} r => path (equals~ \lam x => later
+        (\case \elim __ \with {
+          | here q => here q
+          | there q => there $ (r x).1 q
+        }, \case \elim __ \with {
+          | here q => here q
+          | there q => there $ (r x).2 q
+        }))
+  }
+  | isElem (a : A) (l : ListSet A) : \Prop \elim l {
+    | in~ l => In a l
+    | equals~ {l} {l'} r => ext (r a)
+  }
+  | setExt {l} {l'} => \case \elim l, \elim l' \with {
+    | in~ l, in~ l' => \lam p => path (equals~ p)
+  }
+  | add-head {a} {l} => \case \elim l \with {
+    | in~ l => here idp
+  }
+  | add-tail {a} {x} {l} => \case \elim l \with {
+    | in~ l => there
+  }
+  | add-univ {a} {x} {l} => \case \elim l \with {
+    | in~ l => \case \elim __ \with {
+      | here q => byLeft q
+      | there q => byRight q
+    }
+  }
+  | empty-univ => \case __
+  | set-fin => \case \elim __ \with {
+    | in~ l => inP (l, \lam a => (\lam c => c, \lam c => c))
+  }
+
+-- Мы не предполагали, что равенство на A разрешимо.
+-- Поэтому не все функции возможно реализовать для множеств, удовлетворяющих нашей спецификации (так как она корректна и полна, можно реализовать в точности те функции, которые реализуемы для ListSet).
+-- Например, мы не можем реализовать функцию size : S -> Nat, так как размер множества add a (add a' empty) зависит от того равны ли a и a' или нет.
+
+-- Но если равенство на A разрешимо, то мы можем реализовать все привычные функции.
+\func size {S : FinSetSpec} (d : DecEq S.A) (s : S) : Nat => {?}
+
+\func remove {S : FinSetSpec} (d : DecEq S.A) (a : S.A) (s : S) : S => {?}
+
+-- Можно определить другие реализации FinSetSpec. Например, если равенство на A разрешимо, то можно брать только списки без повторяющихся элементов.
+-- \func NubListSet (A : \Set) (d : DecEq A) => {?} -- \Sigma (xs : List A) плюс условие, что все элементы в xs различны, и факторизация по перестановкам
+
+-- 2. Тип данных Map.
+
+\class MapSpec {K : DecSet} {V : \Set} (M : \Set)
+  | get : M -> K -> Maybe V
+  | mapExt {m m' : M} : (\Pi (k : K) -> get m k = get m' k) -> m = m'
+  | emptyMap : M
+  | put : M -> K -> V -> M
+
+\func getList {K : DecSet} {V : \Set} (l : List (\Sigma K V)) (k : K) : Maybe V
+  => {?}
+
+\class MapSpec' {K : \Set} {V : \Set} (M : \Set)
+  | get' : M -> K -> \Sigma (P : \Prop) (P -> V)
+  | mapExt' {m m' : M} : (\Pi (k : K) -> get' m k = get' m' k) -> m = m'
+  | emptyMap' : M
+  | put' : M -> K -> V -> M
+
+\func getList' {K : \Set} {V : \Set} (l : List (\Sigma K V)) (k : K) : \Sigma (P : \Prop) (P -> V) \elim l
+  | nil => (Empty, absurd)
+  | (k',v') :: l => \let r => getList' l k
+                    \in (TruncP (Or (k = k') (\Sigma (k /= k') (r.1))), \lam p =>
+        \case TruncP.remove {?} p \with {
+          | inl p => v'
+          | inr p => r.2 p.2
+        }
+    )
+
+{-
+l, l' : List (\Sigma K V)
+p : getList' l = getList' l'
+k : K
+v : V
+getList' ((k,v) :: l) = getList' ((k,v) :: l')
+ -}
